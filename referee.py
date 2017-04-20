@@ -31,6 +31,7 @@ debug = False
 if debug:
     from debugging import *
 
+
 class Coord:
     DIRECTIONS_EVEN = [(1, 0),
                        (0, -1),
@@ -456,7 +457,6 @@ class World:
             step('EXIT', 1)
             pprint(self.ships)
 
-
     def game_is_over(self):
         return not (self.enemy_ships and self.my_ships)
 
@@ -564,6 +564,3 @@ def get_world():
 
     world = World(my_ship_count, rhum, cannons, mines, ships_1, ships_0)
     return world
-
-
-
