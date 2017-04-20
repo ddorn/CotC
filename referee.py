@@ -330,7 +330,7 @@ class World:
                     if ship.mine_cooldown == 0:
                         target = ship.stern().neighbor(ship.ori + 3)
 
-                        if target.is_inside_map:
+                        if target.is_inside_map():
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
                             cell_free_of_mines = all(bar.pos != target for bar in self.mines)
                             cell_free_of_ships = all(not ship.at(target) for ship in self.my_ships + self.enemy_ships
@@ -370,7 +370,7 @@ class World:
 
                 new_coord = ship.pos.neighbor(ship.ori)
 
-                if new_coord.is_inside_map:
+                if new_coord.is_inside_map():
                     ship.new_pos_coord = new_coord
                     ship.new_bow_coord = new_coord.neighbor(ship.ori)
                     ship.new_stern_coord = new_coord.neighbor(ship.ori + 3)
@@ -564,3 +564,17 @@ def get_world():
 
     world = World(my_ship_count, rhum, cannons, mines, ships_1, ships_0)
     return world
+
+
+profile = True
+if profile:
+    from random import choice
+    actions = [Action.WAIT, Action.FASTER, Action.SLOWER, Action.GAUCHE, Action.DROITE, Action.FIRE]
+    for _ in range(5):
+        w = get_world()
+        for i in range(20):
+            w.prepare()
+            w.set_actions(0, [(choice(actions), Coord(6, 7)) for _ in range(len(w.enemy_ships))])
+            w.set_actions(0, [(choice(actions), Coord(7, 6)) for _ in range(len(w.my_ships))])
+            w.update()
+        print(w.pretty())
