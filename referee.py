@@ -28,7 +28,7 @@ MAX_SHIP_SPEED = 2
 DEBUG = {"file": sys.stderr, 'flush': True}
 
 debug = False
-if debug:
+if debug and debug != 'AG':
     from debugging import *
 
 
@@ -290,11 +290,11 @@ class World:
                 raise ValueError
 
     def decrement_rhum(self):
-        for ship in self.my_ships + self.enemy_ships:
+        for ship in self.ships:
             ship.damage(1)
 
     def update_initial_rum(self):
-        for ship in self.my_ships + self.enemy_ships:
+        for ship in self.ships:
             ship.initial_health = ship.health
 
     def move_cannonbals(self):
@@ -310,7 +310,7 @@ class World:
                 self.cannon_ball_explosions.append(ball.pos)
 
     def apply_actions(self):
-        for ship in self.my_ships + self.enemy_ships:
+        for ship in self.ships:
             if ship.mine_cooldown > 0:
                 ship.mine_cooldown -= 1
             if ship.canon_cooldown > 0:
@@ -333,8 +333,7 @@ class World:
                         if target.is_inside_map():
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
                             cell_free_of_mines = all(bar.pos != target for bar in self.mines)
-                            cell_free_of_ships = all(not ship.at(target) for ship in self.my_ships + self.enemy_ships
-                                                     if ship != ship)
+                            cell_free_of_ships = all(not s.at(target) for s in self.ships if s != ship)
 
                             if cell_free_of_barrels and cell_free_of_mines and cell_free_of_ships:
                                 ship.mine_cooldown = COOLDOWN_MINE
@@ -419,7 +418,6 @@ class World:
 
         # rotate
         for ship in self.ships:
-            ship.new_pos_coord = ship.pos
             ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
             ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
 
@@ -481,6 +479,7 @@ class World:
         for pos in self.cannon_ball_explosions[:]:
             for mine in self.mines[:]:
                 if pos == mine.pos:
+                    mine.explode(self.ships, True)
                     self.cannon_ball_explosions.remove(pos)
                     self.mines.remove(mine)
                     break
@@ -500,7 +499,11 @@ class World:
         self.cannon_ball_explosions.clear()
 
     def update(self):
-        #print('SIMUATION', **DEBUG)
+        if debug == 'AG':
+            global SIMULS
+            SIMULS += 1
+            print('SIMUATION', **DEBUG)
+
         self.move_cannonbals()
         self.decrement_rhum()
         self.update_initial_rum()
@@ -515,7 +518,7 @@ class World:
 
         # For each sunk ship, create a new rum barrel with the amount of rum
         # the ship had at the begin of the turn (up to 30).
-        for ship in self.my_ships + self.enemy_ships:
+        for ship in self.ships:
             if ship.health <= 0:
                 if ship.initial_health > REWARD_RUM_BARREL_VALUE:
                     reward = REWARD_RUM_BARREL_VALUE

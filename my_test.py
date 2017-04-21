@@ -39,7 +39,8 @@ def rotate_simple():
 
 def fucking_test():
     step('START')
-    w = World(1, [], [], [], [Ship(7, 13, 5, 1, 0, speed=1)], [Ship(8, 15, 4, 0, 1, speed=1)])
+    # w = World(1, [], [], [], [Ship(7, 13, 5, 1, 0, speed=1)], [Ship(8, 15, 4, 0, 1, speed=1)])
+    w = World(1, [], [], [], [Ship(21, 12, 5, 1, 0, speed=1)], [Ship(21, 12, 5, 0, 1, speed=1)])
     a = [(Action.FASTER, None)]
 
     pprint(w.pretty())
