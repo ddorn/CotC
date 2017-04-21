@@ -26,15 +26,32 @@ def rotate_simple():
     step("START")
     pprint(w.pretty())
 
-    a = [(Action.DROITE, 0)]
-    b = [(Action.GAUCHE, 0)]
-    w.set_actions(0, b)
-    w.set_actions(1, a)
+    a1 = [(Action.DROITE, 0)]
+    a2 = [(Action.GAUCHE, 0)]
+    w.set_actions(0, a2)
+    w.set_actions(1, a1)
 
     w.update()
 
     step("END")
     pprint(w.pretty())
 
+
+def fucking_test():
+    step('START')
+    w = World(1, [], [], [], [Ship(7, 13, 5, 1, 0, speed=1)], [Ship(8, 15, 4, 0, 1, speed=1)])
+    a = [(Action.FASTER, None)]
+
+    pprint(w.pretty())
+
+    w.prepare()
+    w.set_actions(0, a)
+    w.set_actions(1, a)
+    w.update()
+
+    step('END')
+    pprint(w.pretty())
+
 # move_simple()
-rotate_simple()
+# rotate_simple()
+fucking_test()

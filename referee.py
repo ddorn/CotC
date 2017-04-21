@@ -62,9 +62,9 @@ class Coord:
 
     def neighbor(self, orientation):
         if self.y & 1:
-            dx, dy = Coord.DIRECTIONS_EVEN[orientation]
-        else:
             dx, dy = Coord.DIRECTIONS_ODD[orientation]
+        else:
+            dx, dy = Coord.DIRECTIONS_EVEN[orientation]
         return Coord(self.x + dx, self.y + dy)
 
     def is_inside_map(self):
@@ -319,9 +319,9 @@ class World:
 
             if ship.action is not None:
                 if ship.action == Action.FASTER:
-                    ship.speed = max(2, ship.speed + 1)
+                    ship.speed = min(MAX_SHIP_SPEED, ship.speed + 1)
                 elif ship.action == Action.SLOWER:
-                    ship.speed = min(0, ship.speed - 1)
+                    ship.speed = max(0, ship.speed - 1)
                 elif ship.action == Action.GAUCHE:
                     ship.new_ori = (ship.ori + 1) % 6
                 elif ship.action == Action.DROITE:
@@ -496,7 +496,7 @@ class World:
         self.cannon_ball_explosions.clear()
 
     def update(self):
-
+        #print('SIMUATION', **DEBUG)
         self.move_cannonbals()
         self.decrement_rhum()
         self.update_initial_rum()
