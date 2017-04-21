@@ -363,7 +363,7 @@ class World:
             mine_damages = mine.explode(self.ships, False)
 
             if mine_damages:
-                mine.remove(mine)
+                self.mines.remove(mine)
 
     def move_ships(self):
         for i in range(1, MAX_SHIP_SPEED + 1):
