@@ -216,6 +216,7 @@ class Ship(Entity):
     def new_pos_intersect(self, ships):
         for p in (self.new_stern_coord, self.new_bow_coord, self.pos):
             for ship in ships:
+                if ship != self and p in (ship.new_bow_coord, ship.new_stern_coord, ship.pos):
                     return True
         return False
 
