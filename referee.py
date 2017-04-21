@@ -211,12 +211,17 @@ class Ship(Entity):
         return self.bow() == coord or self.stern() == coord or self.pos == coord
 
     def new_bow_intersect(self, ships):
-        return any(ship.at(self.new_bow_coord) for ship in ships if ship != self)
+        for ship in ships:
+            if ship != self and (self.new_bow_coord == ship.new_bow_coord
+                                 or self.new_bow_coord == ship.new_stern_coord
+                                 or self.new_bow_coord == ship.new_pos_coord):
+                return True
+        return False
 
     def new_pos_intersect(self, ships):
-        for p in (self.new_stern_coord, self.new_bow_coord, self.pos):
+        for p in (self.new_stern_coord, self.new_bow_coord, self.new_pos_coord):
             for ship in ships:
-                if ship != self and p in (ship.new_bow_coord, ship.new_stern_coord, ship.pos):
+                if ship != self and p in (ship.new_bow_coord, ship.new_stern_coord, ship.new_pos_coord):
                     return True
         return False
 
@@ -422,6 +427,7 @@ class World:
 
         # rotate
         for ship in self.ships:
+            ship.new_pos_coord = ship.pos
             ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
             ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
 
