@@ -214,7 +214,7 @@ class Ship(Entity):
         return any(ship.at(self.new_bow_coord) for ship in ships if ship != self)
 
     def new_pos_intersect(self, ships):
-        return any(self.at(ship.bow()) or self.at(ship.pos) or self.at(ship.stern()) for ship in ships if ship != self)
+        return any(self.at(ship.new_bow_coord) or self.at(ship.pos) or self.at(ship.new_stern_coord) for ship in ships if ship != self)
 
     def heal(self, health):
         self.health += health
