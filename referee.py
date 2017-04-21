@@ -43,7 +43,7 @@ class Coord:
                       (1, -1),
                       (0, -1),
                       (-1, 0),
-                      (0, -1),
+                      (0, 1),
                       (1, 1))
 
     def __init__(self, x, y):
@@ -377,6 +377,10 @@ class World:
                 else:
                     # stop ship
                     ship.speed = 0
+
+            if debug == 'MOVE':
+                step('COLI', 1)
+                pprint(self.pretty())
 
             # Check ship and obstacles collisions
             collisions = []
