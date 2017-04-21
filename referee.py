@@ -202,7 +202,7 @@ class Ship(Entity):
         return Ship(self.pos.x, self.pos.y, self.ori, self.owner, self.id, self.speed, self.health)
 
     def stern(self):
-        return self.pos.neighbor((self.ori + 3)%6)
+        return self.pos.neighbor((self.ori + 3) % 6)
 
     def bow(self):
         return self.pos.neighbor(self.ori)
@@ -328,7 +328,7 @@ class World:
                     ship.new_ori = (ship.ori + 5) % 6
                 elif ship.action == Action.MINE:
                     if ship.mine_cooldown == 0:
-                        target = ship.stern().neighbor((ship.ori + 3)%6)
+                        target = ship.stern().neighbor((ship.ori + 3) % 6)
 
                         if target.is_inside_map():
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
@@ -409,7 +409,7 @@ class World:
 
     def rotate_ships(self):
 
-        if debug:
+        if debug == 'ROTATE':
             step('ENTRY', 1)
             pprint(self.ships)
 
@@ -417,9 +417,9 @@ class World:
         for ship in self.ships:
             ship.new_pos_coord = ship.pos
             ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-            ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3)%6)
+            ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
 
-        if debug:
+        if debug == 'ROTATE':
             step('COLISION CHECK', 1)
             pprint(self.ships)
 
@@ -436,12 +436,12 @@ class World:
             for ship in collisions:
                 ship.new_ori = ship.ori
                 ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-                ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3)%6)
+                ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
                 ship.speed = 0
                 collision_detected = True
             collisions.clear()
 
-        if debug:
+        if debug == 'ROTATE':
             step('COLI END', 1)
             pprint(self.ships)
 
@@ -453,7 +453,7 @@ class World:
         for ship in self.ships:
             self.check_collisions(ship)
 
-        if debug:
+        if debug == 'ROTATE':
             step('EXIT', 1)
             pprint(self.ships)
 
@@ -523,6 +523,8 @@ class World:
 
         for ship in self.my_ships[:]:
             if ship.health <= 0:
+                if debug == 'SINK':
+                    print(blue(ship))
                 self.my_ships.remove(ship)
 
         for ship in self.enemy_ships[:]:
@@ -566,16 +568,23 @@ def get_world():
     return world
 
 
-profile = True
+profile = False
 if profile:
     from random import choice
+    import copy
 
     actions = [Action.WAIT, Action.FASTER, Action.SLOWER, Action.GAUCHE, Action.DROITE, Action.FIRE]
     for _ in range(5):
-        w = get_world()
-        for i in range(20):
-            w.prepare()
-            w.set_actions(0, [(choice(actions), Coord(6, 7)) for _ in range(len(w.enemy_ships))])
-            w.set_actions(0, [(choice(actions), Coord(7, 6)) for _ in range(len(w.my_ships))])
-            w.update()
-            # print(w.pretty())
+        world = get_world()
+        for sim in range(20):
+            w = copy.deepcopy(world)
+            for i in range(20):
+                w.prepare()
+                w.set_actions(0, [(choice(actions), Coord(-1, -1)) for _ in range(len(w.enemy_ships))])
+                w.set_actions(1, [(choice(actions), Coord(-1, -1)) for _ in range(len(w.my_ships))])
+                try:
+                    w.update()
+                except InterruptedError:
+                    print('PERDU')
+                    break
+                # print(w.pretty())
