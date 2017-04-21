@@ -33,19 +33,18 @@ if debug:
 
 
 class Coord:
-    DIRECTIONS_EVEN = [(1, 0),
+    DIRECTIONS_EVEN = ((1, 0),
                        (0, -1),
                        (-1, -1),
                        (-1, 0),
                        (-1, 1),
-                       (0, 1)]
-    DIRECTIONS_ODD = [(1, 0),
+                       (0, 1))
+    DIRECTIONS_ODD = ((1, 0),
                       (1, -1),
                       (0, -1),
                       (-1, 0),
                       (0, -1),
-                      (1, 1)]
-    DIR = [DIRECTIONS_EVEN, DIRECTIONS_ODD]
+                      (1, 1))
 
     def __init__(self, x, y):
         self.x = x
@@ -62,10 +61,11 @@ class Coord:
         return Cube(xp, yp, zp)
 
     def neighbor(self, orientation):
-        orientation %= 6
-        new_x = self.x + Coord.DIR[self.y & 1][orientation][0]
-        new_y = self.y + Coord.DIR[self.y & 1][orientation][1]
-        return Coord(new_x, new_y)
+        if self.y & 1:
+            dx, dy = Coord.DIRECTIONS_EVEN[orientation]
+        else:
+            dx, dy = Coord.DIRECTIONS_ODD[orientation]
+        return Coord(self.x + dx, self.y + dy)
 
     def is_inside_map(self):
         return 0 <= self.x <= 22 and 0 <= self.y <= 20
@@ -202,13 +202,13 @@ class Ship(Entity):
         return Ship(self.pos.x, self.pos.y, self.ori, self.owner, self.id, self.speed, self.health)
 
     def stern(self):
-        return self.pos.neighbor(self.ori + 3)
+        return self.pos.neighbor((self.ori + 3)%6)
 
     def bow(self):
         return self.pos.neighbor(self.ori)
 
     def at(self, coord):
-        return self.stern() == coord or self.bow() == coord or self.pos == coord
+        return self.bow() == coord or self.stern() == coord or self.pos == coord
 
     def new_bow_intersect(self, ships):
         return any(ship.at(self.new_bow_coord) for ship in ships if ship != self)
@@ -328,7 +328,7 @@ class World:
                     ship.new_ori = (ship.ori + 5) % 6
                 elif ship.action == Action.MINE:
                     if ship.mine_cooldown == 0:
-                        target = ship.stern().neighbor(ship.ori + 3)
+                        target = ship.stern().neighbor((ship.ori + 3)%6)
 
                         if target.is_inside_map():
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
@@ -373,7 +373,7 @@ class World:
                 if new_coord.is_inside_map():
                     ship.new_pos_coord = new_coord
                     ship.new_bow_coord = new_coord.neighbor(ship.ori)
-                    ship.new_stern_coord = new_coord.neighbor(ship.ori + 3)
+                    ship.new_stern_coord = new_coord.neighbor((ship.ori + 3) % 6)
                 else:
                     # stop ship
                     ship.speed = 0
@@ -417,7 +417,7 @@ class World:
         for ship in self.ships:
             ship.new_pos_coord = ship.pos
             ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-            ship.new_stern_coord = ship.pos.neighbor(ship.new_ori + 3)
+            ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3)%6)
 
         if debug:
             step('COLISION CHECK', 1)
@@ -436,7 +436,7 @@ class World:
             for ship in collisions:
                 ship.new_ori = ship.ori
                 ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-                ship.new_stern_coord = ship.pos.neighbor(ship.new_ori + 3)
+                ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3)%6)
                 ship.speed = 0
                 collision_detected = True
             collisions.clear()
@@ -569,6 +569,7 @@ def get_world():
 profile = True
 if profile:
     from random import choice
+
     actions = [Action.WAIT, Action.FASTER, Action.SLOWER, Action.GAUCHE, Action.DROITE, Action.FIRE]
     for _ in range(5):
         w = get_world()
@@ -577,4 +578,4 @@ if profile:
             w.set_actions(0, [(choice(actions), Coord(6, 7)) for _ in range(len(w.enemy_ships))])
             w.set_actions(0, [(choice(actions), Coord(7, 6)) for _ in range(len(w.my_ships))])
             w.update()
-        print(w.pretty())
+            # print(w.pretty())
