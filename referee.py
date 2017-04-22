@@ -354,16 +354,26 @@ class World:
                     self.cannon_balls.append(CannonBall(ship.target.x, ship.target.y, travel_time))
 
     def check_collisions(self, ship):
-        for barrel in self.barrels[:]:
+        to_del = []
+        for i, barrel in enumerate(self.barrels):
             if ship.at(barrel.pos):
                 ship.heal(barrel.health)
-                self.barrels.remove(barrel)
+                to_del.append(i)
 
-        for mine in self.mines[:]:
+        for i, j in enumerate(to_del):
+            del self.barrels[i - j]
+
+
+        to_del = []
+        for i, mine in enumerate(self.mines):
             mine_damages = mine.explode(self.ships, False)
 
             if mine_damages:
-                self.mines.remove(mine)
+                to_del.append(i)
+
+        for i, j in enumerate(to_del):
+            del self.barrels[i - j]
+
 
     def move_ships(self):
         for i in range(1, MAX_SHIP_SPEED + 1):
@@ -504,15 +514,12 @@ class World:
                     break
 
     def prepare(self):
-        for ship in self.my_ships + self.enemy_ships:
+        self.my_ship_count = len(self.my_ships)
+        for ship in self.ships:
             ship.action = None
         self.cannon_ball_explosions.clear()
 
     def update(self):
-        if debug == 'AG':
-            global SIMULS
-            SIMULS += 1
-            print('SIMUATION', **DEBUG)
 
         self.move_cannonbals()
         self.decrement_rhum()
