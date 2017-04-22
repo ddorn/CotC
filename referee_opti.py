@@ -1,4 +1,5 @@
 import sys
+from functools import lru_cache
 
 MAP_WIDTH = 23
 MAP_HEIGHT = 21
@@ -31,47 +32,58 @@ debug = False
 if debug and debug != 'AG':
     from debugging import *
 
+DIRECTIONS_EVEN = ((1, 0),
+                   (0, -1),
+                   (-1, -1),
+                   (-1, 0),
+                   (-1, 1),
+                   (0, 1))
+DIRECTIONS_ODD = ((1, 0),
+                  (1, -1),
+                  (0, -1),
+                  (-1, 0),
+                  (0, 1),
+                  (1, 1))
+
+
+@lru_cache(2 ** 11)
+def neighbor(x, y, o):
+    if y & 1:
+        dx, dy = DIRECTIONS_EVEN[o]
+    else:
+        dx, dy = DIRECTIONS_ODD[o]
+
+    return Coord(dx + x, dy + y)
+
 
 class Coord:
-    DIRECTIONS_EVEN = ((1, 0),
-                       (0, -1),
-                       (-1, -1),
-                       (-1, 0),
-                       (-1, 1),
-                       (0, 1))
-    DIRECTIONS_ODD = ((1, 0),
-                      (1, -1),
-                      (0, -1),
-                      (-1, 0),
-                      (0, 1),
-                      (1, 1))
 
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
-    def to_cube(self):
-        x = self.x
-        y = self.y
-
-        xp = x - (y - (y & 1)) / 2
-        zp = y
-        yp = -(xp + zp)
-
-        return Cube(xp, yp, zp)
-
-    def neighbor(self, orientation):
-        if self.y & 1:
-            dx, dy = Coord.DIRECTIONS_ODD[orientation]
-        else:
-            dx, dy = Coord.DIRECTIONS_EVEN[orientation]
-        return Coord(self.x + dx, self.y + dy)
-
     def is_inside_map(self):
         return 0 <= self.x <= 22 and 0 <= self.y <= 20
 
     def distance_to(self, other):
-        return self.to_cube().distance_to(other.to_cube())
+        x1 = self.x
+        y1 = self.y
+
+        y2 = other.y
+        x2 = other.x
+
+        # magic = x1 - x2 - (y1 - (y1 & 1)) / 2 + (y2 - (y2 & 1)) / 2
+        magic = x1 - x2 + (y2 - y1 + ((y1 - y2) & 1)) / 2
+
+        # xA = x1 - (y1 - (y1 & 1)) / 2
+        # zA = y1
+        # yA = -(xA + zA)
+        # xB = x2 - (y2 - (y2 & 1)) / 2
+        # zB = y2
+        # yB = -(xB + zB)
+        # dist2 = abs(xA - xB) + abs(yA - yB) + abs(zA - zB)
+
+        return (abs(magic) + abs(magic + y1 - y2) + abs(y1 - y2)) / 2
 
     def __eq__(self, other):
         if other is None:
@@ -82,19 +94,6 @@ class Coord:
         return 'P({}, {})'.format(self.x, self.y)
 
 
-class Cube:
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def distance_to(self, other):
-        return (abs(self.x - other.x) + abs(self.y - other.y) + abs(self.z - other.z)) / 2
-
-    def __str__(self):
-        return 'C({}, {}, {})'.format(self.x, self.y, self.z)
-
-
 class EntityType:
     SHIP = "SHIP"
     BARREL = "BARREL"
@@ -102,15 +101,9 @@ class EntityType:
     CANNONBALL = "CANNONBALL"
 
 
-class Entity:
-    def __init__(self, type, x, y):
-        self.type = type
-        self.pos = Coord(x, y)
-
-
-class Mine(Entity):
+class Mine:
     def __init__(self, x, y):
-        super().__init__(EntityType.MINE, x, y)
+        self.pos = Coord(x, y)
 
     def __repr__(self):
         return 'M({}, {})'.format(self.pos.x, self.pos.y)
@@ -119,7 +112,7 @@ class Mine(Entity):
         victim = None
 
         for ship in ships:
-            if self.pos == ship.bow() or self.pos == ship.stern() or self.pos == ship.pos:
+            if ship.at(self.pos):
                 ship.damage(MINE_DAMAGE)
                 victim = ship
 
@@ -135,9 +128,9 @@ class Mine(Entity):
         return Mine(self.pos.x, self.pos.y)
 
 
-class CannonBall(Entity):
+class CannonBall:
     def __init__(self, x, y, remaining_turns):
-        super().__init__(EntityType.CANNONBALL, x, y)
+        self.pos = Coord(x, y)
         self.remaining_turns = remaining_turns
 
     def __repr__(self):
@@ -147,9 +140,9 @@ class CannonBall(Entity):
         return CannonBall(self.pos.x, self.pos.y, self.remaining_turns)
 
 
-class RumBarrel(Entity):
+class RumBarrel:
     def __init__(self, x, y, health):
-        super().__init__(EntityType.BARREL, x, y)
+        self.pos = Coord(x, y)
         self.health = health
 
     def __repr__(self):
@@ -169,9 +162,9 @@ class Action:
     MINE = "MINE"
 
 
-class Ship(Entity):
+class Ship:
     def __init__(self, x, y, ori, owner, speed=0, health=INITIAL_SHIP_HEALTH):
-        super().__init__(EntityType.SHIP, x, y)
+        self.pos = Coord(x, y)
         self.ori = ori
         self.speed = speed
         self.health = health
@@ -201,10 +194,10 @@ class Ship(Entity):
         return Ship(self.pos.x, self.pos.y, self.ori, self.owner, self.speed, self.health)
 
     def stern(self):
-        return self.pos.neighbor((self.ori + 3) % 6)
+        return neighbor(self.pos.x, self.pos.y, (self.ori + 3) % 6)
 
     def bow(self):
-        return self.pos.neighbor(self.ori)
+        return neighbor(self.pos.x, self.pos.y, self.ori)
 
     def at(self, coord):
         return self.bow() == coord or self.stern() == coord or self.pos == coord
@@ -336,7 +329,8 @@ class World:
                     ship.new_ori = (ship.ori + 5) % 6
                 elif ship.action == Action.MINE:
                     if ship.mine_cooldown == 0:
-                        target = ship.stern().neighbor((ship.ori + 3) % 6)
+                        s = ship.stern()
+                        target = neighbor(s.x, s.y, (ship.ori + 3) % 6)
 
                         if target.is_inside_map():
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
@@ -383,12 +377,12 @@ class World:
                 if i > ship.speed:
                     continue
 
-                new_coord = ship.pos.neighbor(ship.ori)
+                new_coord = neighbor(ship.pos.x, ship.pos.y, ship.ori)
 
                 if new_coord.is_inside_map():
                     ship.new_pos_coord = new_coord
-                    ship.new_bow_coord = new_coord.neighbor(ship.ori)
-                    ship.new_stern_coord = new_coord.neighbor((ship.ori + 3) % 6)
+                    ship.new_bow_coord = neighbor(new_coord.x, new_coord.y, ship.ori)
+                    ship.new_stern_coord = neighbor(new_coord.x, new_coord.y, (ship.ori + 3) % 6)
                 else:
                     # stop ship
                     ship.speed = 0
@@ -435,8 +429,8 @@ class World:
         # rotate
         for ship in self.ships:
             ship.new_pos_coord = ship.pos
-            ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-            ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
+            ship.new_bow_coord = neighbor(ship.pos.x, ship.pos.y, ship.new_ori)
+            ship.new_stern_coord = neighbor(ship.pos.x, ship.pos.y, (ship.new_ori + 3) % 6)
 
         if debug == 'ROTATE':
             step('COLISION CHECK', 1)
@@ -454,8 +448,8 @@ class World:
 
             for ship in collisions:
                 ship.new_ori = ship.ori
-                ship.new_bow_coord = ship.pos.neighbor(ship.new_ori)
-                ship.new_stern_coord = ship.pos.neighbor((ship.new_ori + 3) % 6)
+                ship.new_bow_coord = neighbor(ship.pos.x, ship.pos.y, ship.new_ori)
+                ship.new_stern_coord = neighbor(ship.pos.x, ship.pos.y, (ship.new_ori + 3) % 6)
                 ship.speed = 0
                 collision_detected = True
             collisions.clear()
@@ -589,9 +583,10 @@ def get_world():
     return world
 
 
-profile = True
+profile = False
 if profile:
     from random import randrange
+
 
     def get_random_world():
 
@@ -617,7 +612,6 @@ if profile:
             bow = ship.bow()
             stern = ship.stern()
             if used_cases[bow.x][bow.y] or used_cases[ship.pos.x][ship.pos.y] or used_cases[stern.x][stern.y]:
-
                 # if there can't be a ship here : try another
                 continue
 
@@ -632,7 +626,6 @@ if profile:
                 my_ships.append(ship)
             else:
                 en_ships.append(ship)
-
 
         # generate mine
         nb = 0
@@ -671,4 +664,3 @@ if profile:
             canon_balls.append(boom)
 
         return World(my_ship_count, barrels, canon_balls, mines, my_ships, en_ships)
-
