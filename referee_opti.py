@@ -1,5 +1,6 @@
 import copy
 import sys
+from collections import namedtuple
 from functools import lru_cache
 
 MAP_WIDTH = 23
@@ -56,41 +57,29 @@ def neighbor(x, y, o):
 
     return Coord(dx + x, dy + y)
 
+def is_inside_map(point):
+    return 0 <= point.x <= 22 and 0 <= point.y <= 20
 
-class Coord:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+def distance_to(a, b):
+    x1 = a.x
+    y1 = a.y
 
-    def is_inside_map(self):
-        return 0 <= self.x <= 22 and 0 <= self.y <= 20
+    x2 = b.x
+    y2 = b.y
 
-    def distance_to(self, other):
-        x1 = self.x
-        y1 = self.y
+    # magic = x1 - x2 - (y1 - (y1 & 1)) / 2 + (y2 - (y2 & 1)) / 2
+    magic = x1 - x2 + (y2 - y1 + ((y1 & 1) - (y2 & 1))) / 2
 
-        x2 = other.x
-        y2 = other.y
+    # xA = x1 - (y1 - (y1 & 1)) / 2
+    # zA = y1
+    # yA = -(xA + zA)
+    # xB = x2 - (y2 - (y2 & 1)) / 2
+    # zB = y2
+    # yB = -(xB + zB)
+    # dist2 = abs(xA - xB) + abs(yA - yB) + abs(zA - zB)
 
-        # magic = x1 - x2 - (y1 - (y1 & 1)) / 2 + (y2 - (y2 & 1)) / 2
-        magic = x1 - x2 + (y2 - y1 + ((y1 & 1) - (y2 & 1))) / 2
-
-        # xA = x1 - (y1 - (y1 & 1)) / 2
-        # zA = y1
-        # yA = -(xA + zA)
-        # xB = x2 - (y2 - (y2 & 1)) / 2
-        # zB = y2
-        # yB = -(xB + zB)
-        # dist2 = abs(xA - xB) + abs(yA - yB) + abs(zA - zB)
-
-        return (abs(magic) + abs(magic + y1 - y2) + abs(y1 - y2)) / 2
-
-    def __eq__(self, other):
-
-        return self.x == other.x and self.y == other.y
-
-    def __repr__(self):
-        return 'P({}, {})'.format(self.x, self.y)
+    return (abs(magic) + abs(magic + y1 - y2) + abs(y1 - y2)) / 2
+Coord = namedtuple('P', ['x', 'y'], verbose=False)
 
 
 class EntityType:
@@ -119,8 +108,8 @@ class Mine:
 
             for ship in ships:
                 if ship != victim:
-                    if ship.stern().distance_to(self.pos) <= 1 or ship.bow().distance_to(
-                            self.pos) <= 1 or ship.pos.distance_to(self.pos) <= 1:
+                    if distance_to(self.pos, ship.stern()) <= 1 or distance_to(ship.bow(),
+                            self.pos) <= 1 or distance_to(ship.pos, self.pos) <= 1:
                         ship.damage(NEAR_MINE_DAMAGE)
 
     def copy(self):
@@ -331,7 +320,7 @@ class World:
                         s = ship.stern()
                         target = neighbor(s.x, s.y, (ship.ori + 3) % 6)
 
-                        if target.is_inside_map():
+                        if is_inside_map(target):
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
                             cell_free_of_mines = all(bar.pos != target for bar in self.mines)
                             cell_free_of_ships = all(not s.at(target) for s in self.ships if s != ship)
@@ -341,7 +330,7 @@ class World:
                                 mine = Mine(target.x, target.y)
                                 self.mines.append(mine)
                 elif ship.action == Action.FIRE:
-                    dist = ship.bow().distance_to(ship.target)
+                    dist = distance_to(ship.bow(), ship.target)
                     travel_time = int(1 + round(dist / 3))
                     self.cannon_balls.append(CannonBall(ship.target.x, ship.target.y, travel_time))
 
@@ -378,7 +367,7 @@ class World:
 
                 new_coord = neighbor(ship.pos.x, ship.pos.y, ship.ori)
 
-                if new_coord.is_inside_map():
+                if is_inside_map(new_coord):
                     ship.new_pos_coord = new_coord
                     ship.new_bow_coord = neighbor(new_coord.x, new_coord.y, ship.ori)
                     ship.new_stern_coord = neighbor(new_coord.x, new_coord.y, (ship.ori + 3) % 6)
