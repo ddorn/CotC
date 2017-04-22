@@ -1,3 +1,4 @@
+import copy
 import sys
 from functools import lru_cache
 
@@ -57,7 +58,6 @@ def neighbor(x, y, o):
 
 
 class Coord:
-
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -69,11 +69,11 @@ class Coord:
         x1 = self.x
         y1 = self.y
 
-        y2 = other.y
         x2 = other.x
+        y2 = other.y
 
         # magic = x1 - x2 - (y1 - (y1 & 1)) / 2 + (y2 - (y2 & 1)) / 2
-        magic = x1 - x2 + (y2 - y1 + ((y1 - y2) & 1)) / 2
+        magic = x1 - x2 + (y2 - y1 + ((y1 & 1) - (y2 & 1))) / 2
 
         # xA = x1 - (y1 - (y1 & 1)) / 2
         # zA = y1
@@ -86,8 +86,7 @@ class Coord:
         return (abs(magic) + abs(magic + y1 - y2) + abs(y1 - y2)) / 2
 
     def __eq__(self, other):
-        if other is None:
-            return False
+
         return self.x == other.x and self.y == other.y
 
     def __repr__(self):
