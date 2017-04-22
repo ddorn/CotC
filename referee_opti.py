@@ -49,16 +49,18 @@ DIRECTIONS_ODD = ((1, 0),
 
 
 @lru_cache(2 ** 11)
-def neighbor(x, y, o):
-    if y & 1:
+def neighbor(point, o):
+    if point.y & 1:
         dx, dy = DIRECTIONS_EVEN[o]
     else:
         dx, dy = DIRECTIONS_ODD[o]
 
-    return Coord(dx + x, dy + y)
+    return Coord(dx + point.x, dy + point.y)
+
 
 def is_inside_map(point):
     return 0 <= point.x <= 22 and 0 <= point.y <= 20
+
 
 def distance_to(a, b):
     x1 = a.x
@@ -79,6 +81,8 @@ def distance_to(a, b):
     # dist2 = abs(xA - xB) + abs(yA - yB) + abs(zA - zB)
 
     return (abs(magic) + abs(magic + y1 - y2) + abs(y1 - y2)) / 2
+
+
 Coord = namedtuple('P', ['x', 'y'], verbose=False)
 
 
@@ -108,8 +112,9 @@ class Mine:
 
             for ship in ships:
                 if ship != victim:
-                    if distance_to(self.pos, ship.stern()) <= 1 or distance_to(ship.bow(),
-                            self.pos) <= 1 or distance_to(ship.pos, self.pos) <= 1:
+                    if distance_to(self.pos, ship.stern()) <= 1 \
+                            or distance_to(ship.bow(), self.pos) <= 1 \
+                            or distance_to(ship.pos, self.pos) <= 1:
                         ship.damage(NEAR_MINE_DAMAGE)
 
     def copy(self):
@@ -182,10 +187,10 @@ class Ship:
         return Ship(self.pos.x, self.pos.y, self.ori, self.owner, self.speed, self.health)
 
     def stern(self):
-        return neighbor(self.pos.x, self.pos.y, (self.ori + 3) % 6)
+        return neighbor(self.pos, (self.ori + 3) % 6)
 
     def bow(self):
-        return neighbor(self.pos.x, self.pos.y, self.ori)
+        return neighbor(self.pos, self.ori)
 
     def at(self, coord):
         return self.bow() == coord or self.stern() == coord or self.pos == coord
@@ -317,8 +322,7 @@ class World:
                     ship.new_ori = (ship.ori + 5) % 6
                 elif ship.action == Action.MINE:
                     if ship.mine_cooldown == 0:
-                        s = ship.stern()
-                        target = neighbor(s.x, s.y, (ship.ori + 3) % 6)
+                        target = neighbor(ship.stern(), (ship.ori + 3) % 6)
 
                         if is_inside_map(target):
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
@@ -365,12 +369,12 @@ class World:
                 if i > ship.speed:
                     continue
 
-                new_coord = neighbor(ship.pos.x, ship.pos.y, ship.ori)
+                new_coord = neighbor(ship.pos, ship.ori)
 
                 if is_inside_map(new_coord):
                     ship.new_pos_coord = new_coord
-                    ship.new_bow_coord = neighbor(new_coord.x, new_coord.y, ship.ori)
-                    ship.new_stern_coord = neighbor(new_coord.x, new_coord.y, (ship.ori + 3) % 6)
+                    ship.new_bow_coord = neighbor(new_coord, ship.ori)
+                    ship.new_stern_coord = neighbor(new_coord, (ship.ori + 3) % 6)
                 else:
                     # stop ship
                     ship.speed = 0
@@ -417,8 +421,8 @@ class World:
         # rotate
         for ship in self.ships:
             ship.new_pos_coord = ship.pos
-            ship.new_bow_coord = neighbor(ship.pos.x, ship.pos.y, ship.new_ori)
-            ship.new_stern_coord = neighbor(ship.pos.x, ship.pos.y, (ship.new_ori + 3) % 6)
+            ship.new_bow_coord = neighbor(ship.pos, ship.new_ori)
+            ship.new_stern_coord = neighbor(ship.pos, (ship.new_ori + 3) % 6)
 
         if debug == 'ROTATE':
             step('COLISION CHECK', 1)
@@ -436,8 +440,8 @@ class World:
 
             for ship in collisions:
                 ship.new_ori = ship.ori
-                ship.new_bow_coord = neighbor(ship.pos.x, ship.pos.y, ship.new_ori)
-                ship.new_stern_coord = neighbor(ship.pos.x, ship.pos.y, (ship.new_ori + 3) % 6)
+                ship.new_bow_coord = neighbor(ship.pos, ship.new_ori)
+                ship.new_stern_coord = neighbor(ship.pos, (ship.new_ori + 3) % 6)
                 ship.speed = 0
                 collision_detected = True
             collisions.clear()
