@@ -567,7 +567,7 @@ class World:
             del self.enemy_ships[key - i]
 
         if self.game_is_over():
-            raise InterruptedError('End reached')
+            return  'Game end'
 
 
 def get_world():
