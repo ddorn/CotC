@@ -97,10 +97,8 @@ class Mine:
 
             for ship in ships:
                 if ship != victim:
-                    stern = ship.stern()
-                    bow = ship.bow()
-                    if distance_to(self.pos.x, self.pos.y, stern.x, stern.y) <= 1 \
-                            or distance_to(bow.x, bow.y, self.pos.x, self.pos.y) <= 1 \
+                    if distance_to(self.pos.x, self.pos.y, ship.stern.x, ship.stern.y) <= 1 \
+                            or distance_to(ship.bow.x, ship.bow.y, self.pos.x, self.pos.y) <= 1 \
                             or distance_to(ship.pos.x, ship.pos.y, self.pos.x, self.pos.y) <= 1:
                         ship.damage(NEAR_MINE_DAMAGE)
 
@@ -159,6 +157,9 @@ class Action:
 class Ship:
     def __init__(self, x, y, ori, owner, speed=0, health=INITIAL_SHIP_HEALTH):
         self.pos = Coord(x, y)
+        self.stern = neighbor(x, y, (ori + 3) % 6)
+        self.bow = neighbor(x, y, ori)
+
         self.ori = ori
         self.speed = speed
         self.health = health
@@ -187,14 +188,8 @@ class Ship:
     def copy(self):
         return Ship(self.pos.x, self.pos.y, self.ori, self.owner, self.speed, self.health)
 
-    def stern(self):
-        return neighbor(self.pos.x, self.pos.y, (self.ori + 3) % 6)
-
-    def bow(self):
-        return neighbor(self.pos.x, self.pos.y, self.ori)
-
     def at(self, coord):
-        return self.bow() == coord or self.stern() == coord or self.pos == coord
+        return self.bow == coord or self.stern == coord or self.pos == coord
 
     def new_bow_intersect(self, ships):
         for ship in ships:
@@ -207,8 +202,9 @@ class Ship:
     def new_pos_intersect(self, ships):
         for p in (self.new_stern_coord, self.new_bow_coord, self.new_pos_coord):
             for ship in ships:
-                if ship != self and p in (ship.new_bow_coord, ship.new_stern_coord, ship.new_pos_coord):
-                    return True
+                if ship != self:
+                    if p == ship.new_bow_coord or p == ship.new_stern_coord or p == ship.new_pos_coord:
+                        return True
         return False
 
     def heal(self, health):
@@ -327,8 +323,7 @@ class World:
                     ship.new_ori = (ship.ori + 5) % 6
                 elif ship.action == Action.MINE:
                     if ship.mine_cooldown == 0:
-                        stern = ship.stern()
-                        target = neighbor(stern.x, stern.y, (ship.ori + 3) % 6)
+                        target = neighbor(ship.stern.x, ship.stern.y, (ship.ori + 3) % 6)
 
                         if is_inside_map(target):
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
@@ -340,8 +335,7 @@ class World:
                                 mine = Mine(target.x, target.y)
                                 self.mines.append(mine)
                 elif ship.action == Action.FIRE:
-                    bow = ship.bow()
-                    dist = distance_to(bow.x, bow.y, ship.target.x, ship.target.y)
+                    dist = distance_to(ship.bow.x, ship.bow.y, ship.target.x, ship.target.y)
                     travel_time = int(1 + round(dist / 3))
                     self.cannon_balls.append(CannonBall(ship.target.x, ship.target.y, travel_time))
 
@@ -370,8 +364,8 @@ class World:
             for ship in self.ships:
 
                 ship.new_pos_coord = ship.pos
-                ship.new_bow_coord = ship.bow()
-                ship.new_stern_coord = ship.stern()
+                ship.new_bow_coord = ship.bow
+                ship.new_stern_coord = ship.stern
 
                 if i > ship.speed:
                     continue
@@ -402,8 +396,8 @@ class World:
                 for ship in collisions:
                     # revert last move
                     ship.new_pos_coord = ship.pos
-                    ship.new_bow_coord = ship.bow()
-                    ship.new_stern_coord = ship.stern()
+                    ship.new_bow_coord = ship.bow
+                    ship.new_stern_coord = ship.stern
 
                     # stop ships
                     ship.speed = 0
@@ -414,6 +408,8 @@ class World:
             # move ships to their new location
             for ship in self.ships:
                 ship.pos = ship.new_pos_coord
+                ship.stern = neighbor(ship.pos.x, ship.pos.y, (ship.ori + 3) % 6)
+                ship.bow = neighbor(ship.pos.x, ship.pos.y, ship.ori)
 
             # check mines / rhum
             for ship in self.ships:
@@ -460,6 +456,8 @@ class World:
         # apply rotation
         for ship in self.ships:
             ship.ori = ship.new_ori
+            ship.bow = ship.new_bow_coord
+            ship.stern = ship.new_stern_coord
 
         # check mines / rhum
         for ship in self.ships:
@@ -476,7 +474,7 @@ class World:
         to_del = []
         for i, pos in enumerate(self.cannon_ball_explosions):
             for ship in self.ships:
-                if pos == ship.bow() or pos == ship.stern():
+                if pos == ship.bow or pos == ship.stern:
                     ship.damage(LOW_DAMAGE)
                     to_del.append(i)
                     break
@@ -630,8 +628,8 @@ def get_random_world():
         ship = Ship(randrange(1, 22), randrange(1, 20), randrange(6), 1, randrange(3), randrange(1, 101))
 
         # verify if there's something where the ship is
-        bow = ship.bow()
-        stern = ship.stern()
+        bow = neighbor(ship.pos.x, ship.pos.y, ship.ori)
+        stern = neighbor(ship.pos.x, ship.pos.y, (ship.ori + 3) % 6)
         if used_cases[bow.x][bow.y] or used_cases[ship.pos.x][ship.pos.y] or used_cases[stern.x][stern.y]:
             # if there can't be a ship here : try another
             continue
