@@ -22,10 +22,12 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 DK_GREEN = (0, 100, 0)
+DK_RED = (100, 0, 0)
 
 
 screen = pygame.display.set_mode(SCREEN_SIZE)
 world_to_draw = get_random_world()
+last_world = get_random_world()
 
 def to_screen_coord(pos):
     x, y = pos
@@ -61,8 +63,9 @@ def draw_grid(screen):
 
 
 def update(world):
-    global world_to_draw
+    global world_to_draw, last_world
 
+    last_world = world_to_draw
     world_to_draw = world
     pprint(world.pretty())
 
@@ -70,13 +73,13 @@ def update(world):
 def draw_world(screen, world: World):
     for ship in world.my_ships:
         draw_hex(screen, ship.pos, GREEN)
-        draw_hex(screen, ship.stern(), GREEN)
-        draw_hex(screen, ship.bow(), DK_GREEN)
+        draw_hex(screen, ship.stern, GREEN)
+        draw_hex(screen, ship.bow, DK_GREEN)
 
     for ship in world.enemy_ships:
         draw_hex(screen, ship.pos, RED)
-        draw_hex(screen, ship.stern(), RED)
-        draw_hex(screen, ship.bow(), RED)
+        draw_hex(screen, ship.stern, RED)
+        draw_hex(screen, ship.bow, DK_RED)
 
     for mine in world.mines:
         draw_hex(screen, mine.pos, GREY_25)
@@ -86,6 +89,8 @@ def draw_world(screen, world: World):
 
 
 def main():
+    global last_world, world_to_draw
+    
     run = True
     while run:
         for event in pygame.event.get():
@@ -98,6 +103,23 @@ def main():
 
                 if event.key == K_r:
                     update(get_random_world())
+
+                if event.key == K_u:
+                    last_world = world_to_draw.copy()
+
+                    en_actions = [(Action.FASTER, None) for _ in world_to_draw.enemy_ships]
+                    my_actions = [(Action.DROITE, None) for _ in world_to_draw.my_ships]
+
+                    world_to_draw.prepare()
+                    world_to_draw.set_actions(0, en_actions)
+                    world_to_draw.set_actions(1, my_actions)
+                    try:
+                        world_to_draw.update()
+                    except InterruptedError:
+                        print('DEAD')
+
+                if event.key == K_l:
+                    last_world, world_to_draw = world_to_draw, last_world
 
         screen.fill(WHITE)
         draw_grid(screen)
