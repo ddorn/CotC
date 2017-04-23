@@ -25,5 +25,5 @@ This works with pygame, if you have troubles installing it, try [this](https://y
 
 ##### Commands
 * `R` creates a new random world
-* `U` makes actions (they're hardcoded) and updates this world 
-* `L` goes back in the history of what you simulate. Yes, t's a time machine.
+* `RIGHT` makes actions (they're hardcoded) and updates this world 
+* `LEFT` goes back in the history of what you simulate. Yes, it's a time machine.

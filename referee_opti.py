@@ -1,4 +1,3 @@
-import copy
 import sys
 from collections import namedtuple
 from functools import lru_cache
