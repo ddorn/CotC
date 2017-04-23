@@ -63,6 +63,9 @@ def is_inside_map(point):
 
 @lru_cache(2 ** 11)
 def distance_to(ax, ay, bx, by):
+    if ax < bx:
+        return distance_to(bx, by, ax, ay)
+
     magic = ax - bx + (by - ay + ((ay & 1) - (by & 1))) / 2
 
     return (abs(magic) + abs(magic + ay - by) + abs(ay - by)) / 2
@@ -87,10 +90,12 @@ class Mine:
 
     def explode(self, ships, force):
         victim = None
+        exploded = False
 
         for ship in ships:
             if ship.at(self.pos):
                 ship.damage(MINE_DAMAGE)
+                exploded = True
                 victim = ship
 
         if force or victim is not None:
@@ -101,6 +106,9 @@ class Mine:
                             or distance_to(ship.bow.x, ship.bow.y, self.pos.x, self.pos.y) <= 1 \
                             or distance_to(ship.pos.x, ship.pos.y, self.pos.x, self.pos.y) <= 1:
                         ship.damage(NEAR_MINE_DAMAGE)
+                        exploded = True
+
+        return exploded
 
     def copy(self):
         return Mine(self.pos.x, self.pos.y)
@@ -350,7 +358,7 @@ class World:
             for nb_deleted, key in enumerate(to_del):
                 del self.barrels[key - nb_deleted]
 
-            to_del = []
+            to_del.clear()
             for nb_deleted, mine in enumerate(self.mines):
                 mine_damages = mine.explode(self.ships, False)
 
@@ -358,7 +366,7 @@ class World:
                     to_del.append(nb_deleted)
 
             for nb_deleted, key in enumerate(to_del):
-                del self.barrels[key - nb_deleted]
+                del self.mines[key - nb_deleted]
 
     def move_ships(self):
         for i in range(1, MAX_SHIP_SPEED + 1):
@@ -504,19 +512,20 @@ class World:
     def explode_barrels(self):
 
         to_del_boom = []
-        to_del_miam = []
 
         for i, pos in enumerate(self.cannon_ball_explosions):
+            miam_boom = None
             for j, rum in enumerate(self.barrels):
                 if pos == rum.pos:
                     to_del_boom.append(i)
-                    to_del_miam.append(j)
+                    miam_boom = j
                     break
+
+            if miam_boom is not None:
+                del self.barrels[miam_boom]
 
         for i, key in enumerate(to_del_boom):
             del self.cannon_balls[key - i]
-        for i, key in enumerate(to_del_miam):
-            del self.barrels[key - i]
 
     def prepare(self):
         self.my_ship_count = len(self.my_ships)
@@ -567,7 +576,7 @@ class World:
             del self.enemy_ships[key - i]
 
         if self.game_is_over():
-            return  'Game end'
+            return 'Game over'
 
 
 def get_world():
@@ -618,7 +627,7 @@ def get_random_world():
     barrels = []
     nb_barrel = randrange(20)
     canon_balls = []
-    nb_canon_bals = randrange(6)
+    nb_canon_bals = randrange(20)
 
     used_cases = [[0 for y in range(21)] for x in range(23)]
 
