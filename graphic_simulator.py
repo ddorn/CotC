@@ -6,10 +6,11 @@ from referee_opti import *
 from debugging import *
 from math import pi, sqrt, cos, sin
 
+pygame.init()
 
-GRID_SIZE = 15
+GRID_SIZE = 20
 HEXA_WIDTH = sqrt(3) / 2 * GRID_SIZE
-SCREEN_SIZE = (int(HEXA_WIDTH * 24 * 2), int(GRID_SIZE * 3 / 4 * 22 * 2))
+SCREEN_SIZE = (int(HEXA_WIDTH * 24 * 2 + 120), int(GRID_SIZE * 43 * 3 / 4))
 
 
 # colors
@@ -24,6 +25,7 @@ GREEN = (0, 255, 0)
 DK_GREEN = (0, 100, 0)
 DK_RED = (100, 0, 0)
 
+FONT = pygame.font.Font('segoeuil.ttf', 20)
 
 screen = pygame.display.set_mode(SCREEN_SIZE)
 world_to_draw = get_random_world()
@@ -40,20 +42,28 @@ def to_screen_coord(pos):
     return (new_x, new_y)
 
 
-def draw_hex(screen, pos, color=BLACK, fill=True):
-    pos = to_screen_coord(pos)
+def draw_hex(screen, pos, color=BLACK, fill=True, info=None):
+    screen_pos = to_screen_coord(pos)
 
     points = []
     for i in range(6):
         angle_deg = 60 * i + 30
         angle_rad = pi / 180 * angle_deg
-        point = (pos[0] + GRID_SIZE * cos(angle_rad),
-                 pos[1] + GRID_SIZE * sin(angle_rad))
+        point = (screen_pos[0] + GRID_SIZE * cos(angle_rad),
+                 screen_pos[1] + GRID_SIZE * sin(angle_rad))
         points.append(point)
 
     if fill:
         gfxdraw.filled_polygon(screen, points, color)
     gfxdraw.aapolygon(screen, points, color)
+
+
+    if info is not None:
+        # dist to (5, 5)
+        dist_text = FONT.render(str(info), True, BLACK)
+        dist_rect = dist_text.get_rect()
+        dist_rect.center = screen_pos
+        screen.blit(dist_text, dist_rect)
 
 
 def draw_grid(screen):
@@ -72,25 +82,26 @@ def update(world):
 
 def draw_world(screen, world: World):
     for ship in world.my_ships:
-        draw_hex(screen, ship.pos, GREEN)
-        draw_hex(screen, ship.stern, GREEN)
-        draw_hex(screen, ship.bow, DK_GREEN)
+        draw_hex(screen, ship.pos, GREEN, info=ship.health)
+        draw_hex(screen, ship.stern, GREEN, info=ship.health)
+        draw_hex(screen, ship.bow, DK_GREEN, info=ship.health)
+
 
     for ship in world.enemy_ships:
-        draw_hex(screen, ship.pos, RED)
-        draw_hex(screen, ship.stern, RED)
-        draw_hex(screen, ship.bow, DK_RED)
+        draw_hex(screen, ship.pos, RED, info=ship.health)
+        draw_hex(screen, ship.stern, RED, info=ship.health)
+        draw_hex(screen, ship.bow, DK_RED, info=ship.health)
 
     for mine in world.mines:
         draw_hex(screen, mine.pos, GREY_25)
 
     for barrel in world.barrels:
-        draw_hex(screen, barrel.pos, BLUE)
+        draw_hex(screen, barrel.pos, BLUE, info=barrel.health)
 
 
 def main():
     global last_world, world_to_draw
-    
+
     run = True
     while run:
         for event in pygame.event.get():
