@@ -3,6 +3,8 @@ from _dummy_thread import start_new_thread
 from pygame import gfxdraw
 from pygame.locals import *
 from referee_opti import *
+mode = 'graphics'
+from v9_AG import *
 from debugging import *
 from math import pi, sqrt, cos, sin
 
@@ -10,7 +12,7 @@ pygame.init()
 
 GRID_SIZE = 20
 HEXA_WIDTH = sqrt(3) / 2 * GRID_SIZE
-SCREEN_SIZE = (int(HEXA_WIDTH * 24 * 2 + 120), int(GRID_SIZE * 43 * 3 / 4))
+SCREEN_SIZE = (int(HEXA_WIDTH * 24 * 2), int(GRID_SIZE * 43 * 3 / 4))
 
 
 # colors
@@ -29,7 +31,8 @@ FONT = pygame.font.Font('segoeuil.ttf', 20)
 
 screen = pygame.display.set_mode(SCREEN_SIZE)
 world_to_draw = get_random_world()
-last_world = get_random_world()
+last_worlds = [world_to_draw]
+
 
 def to_screen_coord(pos):
     x, y = pos
@@ -73,9 +76,9 @@ def draw_grid(screen):
 
 
 def update(world):
-    global world_to_draw, last_world
+    global world_to_draw, new_world
 
-    last_world = world_to_draw
+    last_worlds.append(world_to_draw)
     world_to_draw = world
     pprint(world.pretty())
 
@@ -100,7 +103,9 @@ def draw_world(screen, world: World):
 
 
 def main():
-    global last_world, world_to_draw
+    global new_world, world_to_draw
+
+    histo_pos = 0
 
     run = True
     while run:
@@ -114,23 +119,28 @@ def main():
 
                 if event.key == K_r:
                     update(get_random_world())
+                    histo_pos = len(last_worlds) - 1
 
                 if event.key == K_u:
-                    last_world = world_to_draw.copy()
+                    new_world = world_to_draw.copy()
 
-                    en_actions = [(Action.FASTER, None) for _ in world_to_draw.enemy_ships]
-                    my_actions = [(Action.DROITE, None) for _ in world_to_draw.my_ships]
+                    en_actions = [(Action.FASTER, None) for _ in new_world.enemy_ships]
+                    my_actions = [(Action.DROITE, None) for _ in new_world.my_ships]
 
-                    world_to_draw.prepare()
-                    world_to_draw.set_actions(0, en_actions)
-                    world_to_draw.set_actions(1, my_actions)
+                    new_world.prepare()
+                    new_world.set_actions(0, en_actions)
+                    new_world.set_actions(1, my_actions)
+
                     try:
-                        world_to_draw.update()
+                        new_world.update()
                     except InterruptedError:
                         print('DEAD')
 
+                    update(new_world)
+
                 if event.key == K_l:
-                    last_world, world_to_draw = world_to_draw, last_world
+                    histo_pos = (histo_pos - 1) % len(last_worlds)
+                    world_to_draw = last_worlds[histo_pos]
 
         screen.fill(WHITE)
         draw_grid(screen)

@@ -339,25 +339,26 @@ class World:
                     travel_time = int(1 + round(dist / 3))
                     self.cannon_balls.append(CannonBall(ship.target.x, ship.target.y, travel_time))
 
-    def check_collisions(self, ship):
-        to_del = []
-        for i, barrel in enumerate(self.barrels):
-            if ship.at(barrel.pos):
-                ship.heal(barrel.health)
-                to_del.append(i)
+    def check_all_colisions(self):
+        for ship in self.ships:
+            to_del = []
+            for i, barrel in enumerate(self.barrels):
+                if ship.at(barrel.pos):
+                    ship.heal(barrel.health)
+                    to_del.append(i)
 
-        for i, j in enumerate(to_del):
-            del self.barrels[i - j]
+            for nb_deleted, key in enumerate(to_del):
+                del self.barrels[key - nb_deleted]
 
-        to_del = []
-        for i, mine in enumerate(self.mines):
-            mine_damages = mine.explode(self.ships, False)
+            to_del = []
+            for nb_deleted, mine in enumerate(self.mines):
+                mine_damages = mine.explode(self.ships, False)
 
-            if mine_damages:
-                to_del.append(i)
+                if mine_damages:
+                    to_del.append(nb_deleted)
 
-        for i, j in enumerate(to_del):
-            del self.barrels[i - j]
+            for nb_deleted, key in enumerate(to_del):
+                del self.barrels[key - nb_deleted]
 
     def move_ships(self):
         for i in range(1, MAX_SHIP_SPEED + 1):
@@ -412,8 +413,7 @@ class World:
                 ship.bow = neighbor(ship.pos.x, ship.pos.y, ship.ori)
 
             # check mines / rhum
-            for ship in self.ships:
-                self.check_collisions(ship)
+            self.check_all_colisions()
 
     def rotate_ships(self):
 
@@ -460,8 +460,7 @@ class World:
             ship.stern = ship.new_stern_coord
 
         # check mines / rhum
-        for ship in self.ships:
-            self.check_collisions(ship)
+        self.check_all_colisions()
 
         if debug == 'ROTATE':
             step('EXIT', 1)
@@ -579,6 +578,7 @@ def get_world():
     ships_1 = []
     ships = [ships_0, ships_1]
 
+
     my_ship_count = int(input())  # the number of remaining ships
     entity_count = int(input())  # the number of entities (e.g. ships, mines or cannonballs)
     for i in range(entity_count):
@@ -604,7 +604,7 @@ def get_world():
     return world
 
 
-profile = False
+mode = None
 from random import randrange
 
 
