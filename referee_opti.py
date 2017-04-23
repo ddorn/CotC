@@ -1,3 +1,4 @@
+import copy
 import sys
 from collections import namedtuple
 from functools import lru_cache
@@ -61,7 +62,7 @@ def is_inside_map(point):
     return 0 <= point.x <= 22 and 0 <= point.y <= 20
 
 
-@lru_cache(2 ** 11)
+@lru_cache(2 ** 14)
 def distance_to(ax, ay, bx, by):
     if ax < bx:
         return distance_to(bx, by, ax, ay)
@@ -254,7 +255,6 @@ class World:
                      [s.copy() for s in self.my_ships],
                      [s.copy() for s in self.enemy_ships])
 
-    @property
     def ships(self):
         return self.my_ships + self.enemy_ships
 
@@ -289,11 +289,11 @@ class World:
                 raise ValueError
 
     def decrement_rhum(self):
-        for ship in self.ships:
+        for ship in self.ships():
             ship.damage(1)
 
     def update_initial_rum(self):
-        for ship in self.ships:
+        for ship in self.ships():
             ship.initial_health = ship.health
 
     def move_cannonbals(self):
@@ -313,7 +313,7 @@ class World:
             del self.cannon_balls[key - i]
 
     def apply_actions(self):
-        for ship in self.ships:
+        for ship in self.ships():
             if ship.mine_cooldown > 0:
                 ship.mine_cooldown -= 1
             if ship.canon_cooldown > 0:
@@ -336,7 +336,7 @@ class World:
                         if is_inside_map(target):
                             cell_free_of_barrels = all(bar.pos != target for bar in self.barrels)
                             cell_free_of_mines = all(bar.pos != target for bar in self.mines)
-                            cell_free_of_ships = all(not s.at(target) for s in self.ships if s != ship)
+                            cell_free_of_ships = all(not s.at(target) for s in self.ships() if s != ship)
 
                             if cell_free_of_barrels and cell_free_of_mines and cell_free_of_ships:
                                 ship.mine_cooldown = COOLDOWN_MINE
@@ -347,8 +347,9 @@ class World:
                     travel_time = int(1 + round(dist / 3))
                     self.cannon_balls.append(CannonBall(ship.target.x, ship.target.y, travel_time))
 
-    def check_all_colisions(self):
-        for ship in self.ships:
+    def check_all_collisions(self):
+        for ship in self.ships():
+
             to_del = []
             for i, barrel in enumerate(self.barrels):
                 if ship.at(barrel.pos):
@@ -358,19 +359,19 @@ class World:
             for nb_deleted, key in enumerate(to_del):
                 del self.barrels[key - nb_deleted]
 
-            to_del.clear()
-            for nb_deleted, mine in enumerate(self.mines):
-                mine_damages = mine.explode(self.ships, False)
+        to_del = []
+        for nb_deleted, mine in enumerate(self.mines):
+            mine_damages = mine.explode(self.ships(), False)
 
-                if mine_damages:
-                    to_del.append(nb_deleted)
+            if mine_damages:
+                to_del.append(nb_deleted)
 
-            for nb_deleted, key in enumerate(to_del):
-                del self.mines[key - nb_deleted]
+        for nb_deleted, key in enumerate(to_del):
+            del self.mines[key - nb_deleted]
 
     def move_ships(self):
         for i in range(1, MAX_SHIP_SPEED + 1):
-            for ship in self.ships:
+            for ship in self.ships():
 
                 ship.new_pos_coord = ship.pos
                 ship.new_bow_coord = ship.bow
@@ -398,8 +399,8 @@ class World:
             collision_detected = True
             while collision_detected:
                 collision_detected = False
-                for ship in self.ships:
-                    if ship.new_bow_intersect(self.ships):
+                for ship in self.ships():
+                    if ship.new_bow_intersect(self.ships()):
                         collisions.append(ship)
 
                 for ship in collisions:
@@ -415,29 +416,29 @@ class World:
                 collisions.clear()
 
             # move ships to their new location
-            for ship in self.ships:
+            for ship in self.ships():
                 ship.pos = ship.new_pos_coord
                 ship.stern = neighbor(ship.pos.x, ship.pos.y, (ship.ori + 3) % 6)
                 ship.bow = neighbor(ship.pos.x, ship.pos.y, ship.ori)
 
             # check mines / rhum
-            self.check_all_colisions()
+            self.check_all_collisions()
 
     def rotate_ships(self):
 
         if debug == 'ROTATE':
             step('ENTRY', 1)
-            pprint(self.ships)
+            pprint(self.ships())
 
         # rotate
-        for ship in self.ships:
+        for ship in self.ships():
             ship.new_pos_coord = ship.pos
             ship.new_bow_coord = neighbor(ship.pos.x, ship.pos.y, ship.new_ori)
             ship.new_stern_coord = neighbor(ship.pos.x, ship.pos.y, (ship.new_ori + 3) % 6)
 
         if debug == 'ROTATE':
             step('COLISION CHECK', 1)
-            pprint(self.ships)
+            pprint(self.ships())
 
         # check collisions
         collision_detected = True
@@ -445,8 +446,8 @@ class World:
         while collision_detected:
             collision_detected = False
 
-            for ship in self.ships:
-                if ship.new_pos_intersect(self.ships):
+            for ship in self.ships():
+                if ship.new_pos_intersect(self.ships()):
                     collisions.append(ship)
 
             for ship in collisions:
@@ -459,20 +460,20 @@ class World:
 
         if debug == 'ROTATE':
             step('COLI END', 1)
-            pprint(self.ships)
+            pprint(self.ships())
 
         # apply rotation
-        for ship in self.ships:
+        for ship in self.ships():
             ship.ori = ship.new_ori
             ship.bow = ship.new_bow_coord
             ship.stern = ship.new_stern_coord
 
         # check mines / rhum
-        self.check_all_colisions()
+        self.check_all_collisions()
 
         if debug == 'ROTATE':
             step('EXIT', 1)
-            pprint(self.ships)
+            pprint(self.ships())
 
     def game_is_over(self):
         return not (self.enemy_ships and self.my_ships)
@@ -480,7 +481,7 @@ class World:
     def explode_ships(self):
         to_del = []
         for i, pos in enumerate(self.cannon_ball_explosions):
-            for ship in self.ships:
+            for ship in self.ships():
                 if pos == ship.bow or pos == ship.stern:
                     ship.damage(LOW_DAMAGE)
                     to_del.append(i)
@@ -499,7 +500,7 @@ class World:
         for i, pos in enumerate(self.cannon_ball_explosions):
             for j, mine in enumerate(self.mines):
                 if pos == mine.pos:
-                    mine.explode(self.ships, True)
+                    mine.explode(self.ships(), True)
                     to_del_booms.append(i)
                     to_del_mines.append(j)
                     break
@@ -529,7 +530,7 @@ class World:
 
     def prepare(self):
         self.my_ship_count = len(self.my_ships)
-        for ship in self.ships:
+        for ship in self.ships():
             ship.action = None
         self.cannon_ball_explosions.clear()
 
@@ -549,7 +550,7 @@ class World:
 
         # For each sunk ship, create a new rum barrel with the amount of rum
         # the ship had at the begin of the turn (up to 30).
-        for ship in self.ships:
+        for ship in self.ships():
             if ship.health <= 0:
                 if ship.initial_health > REWARD_RUM_BARREL_VALUE:
                     reward = REWARD_RUM_BARREL_VALUE
@@ -631,7 +632,7 @@ def get_random_world():
 
     used_cases = [[0 for y in range(21)] for x in range(23)]
 
-    # generate ships
+    # generate de mémoir ilk
     nb = 0
     while nb < my_ship_count + en_ship_count:
         ship = Ship(randrange(1, 22), randrange(1, 20), randrange(6), 1, randrange(3), randrange(1, 101))
