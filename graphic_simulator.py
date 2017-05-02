@@ -97,6 +97,7 @@ def draw_circle(screen, pos, color=RED, size=10, fill=True, info=None):
         dist_rect.center = x, y
         screen.blit(dist_text, dist_rect)
 
+
 def draw_world(screen, world: World):
     for ship in world.my_ships:
         draw_hex(screen, ship.pos, GREEN, info=ship.health)
